@@ -1,5 +1,21 @@
 # FortiOS 7.6.3
 
+## Indices
+
+- [Baixando a imagem](#baixando-a-imagem)
+- [Configurando interfaces - VMware](#configurando-interfaces-de-redes-do-vmware-workstation)
+- [Configurando interfaces FortiGate](#configurando-interface-cli)
+- [Dashboard](#dashboard)
+- [Network](#network)
+- [Physical interface](#physical-interface)
+- [Software switch](#software-switch)
+- [SD-WAN](#sd-wan)
+    - [Criando SD-WAN](#criando-a-sd-wan)
+- [Policy & Objects](#policy--objects)
+    - [Addresses](#addresses)
+    - [Firewall Policy](#firewall-policy)
+    - [NAT | VIP]
+
 ## Baixando a imagem
 
 Para podermos instalar em nosso hypervisor, é necessário baixarmos a imagem da VM, já disponibilizada pela FortiNet, para isso acesse <a href="https://www.forticloud.com">Forticloud</a> , faça login caso já tenha uma conta, se não, cria uma conta nova.
@@ -140,3 +156,61 @@ você já vai ver que existe um virtual-wan-link, usaremos ele para nossa primei
 
 Basta editar e em participants escolher a port3 da SD-WAN, no fim teremos algo assim:
 ![alt text](image-3.png)
+
+### Policy & Objects
+
+
+#### Addresses
+
+No FortiGate, o **addresses** se assemelha ao "alias" do pfSense, mas de forma diferente, onde na verdade aqui são tratados como **Objetos de rede** que representam :
+
+- Um IP único
+- Uma sub-rede
+- Um range d IPs
+- Um FQDN
+- Uma interface local
+- Um grupo de endereços
+
+E são usados quando vamos criar regras de firewall(politicas), policitas de NAT, roteamento, VPN, entre outras.
+
+#### Firewall Policy
+
+Literalmente é regra de firewall, caso já tenha trabalhado com algum outro vai ser facil entender:
+
+
+### NAT e VIP
+
+Ao menos aqui na versão 7.6.3 funciona da seguinte forma:
+
+- A policy a ser criado vai ser ondo o acesso se dá de fora para dentro,sendo assim
+
+    - Incoming interface : sua SD-WAN
+    - Outgoing interface : sua LAN ou soft-switch
+    - Source : ALL
+    - Destination : Pode ser sua propria LAN ou soft-switch aplicando a todo host daquela interface
+    - Service : no caso utlizei web access, como se fosse permitindo o acesso externo ao nosso webserver na HTTP / HTTPS
+
+Se deixarmos marcado o NAT já teriamos uma roteamento rolando a todos os hosts da interface Outgoing. Em nosso caso iremos utilizar do VIP.
+
+### VIP
+
+o VIP vai nos permitir fazer o redirecionamento para um host ou grupo de hosts especificos, sendo assim vamos em **Virtual IPs**, vá em Create New e informe :
+
+- Name
+- Network : a interface da sua WAN
+- External IP address/range: se deixar 0.0.0.0 então é tudo permitido
+
+Marque o Port Forwarding, e em :
+
+- External port : informe a porta de origem
+- Map to IPv4 port : Informe a porta interna do destino
+
+Agora volte na policy que criamos antes e altere Destination para o seu VIP.
+
+No fim teremos :
+
+A policy
+![alt text](image-4.png)
+
+O VIP
+![alt text](image-5.png)
