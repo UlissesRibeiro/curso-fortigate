@@ -1,4 +1,4 @@
-# FortiOS 7.6.3
+# FortiGate
 
 ## Indices
 
@@ -6,6 +6,17 @@
 - [Configurando interfaces - VMware](#configurando-interfaces-de-redes-do-vmware-workstation)
 - [Configurando interfaces FortiGate](#configurando-interface-cli)
 - [Dashboard](#dashboard)
+- [Configurações iniciais](#configurações-iniciais)
+    - [Configurando interface LAN](#configurando-interface-lan)
+    - [Configurando interface WAN](#configurando-interface-wan)
+    - [Overview interfaces](#overview-interfaces)
+    - [Usuários administrativos](#usuários-administrativos)
+        - [Criando usuário administrativo](#criando-usuário-administrativo)
+    - [Configurando DHCP Server](#configurando-dhcp-server)
+    - [Criando DNS Server](#criando-dns-server)
+    - [Backup de configuração](#backup-de-configuração)
+
+
 - [Network](#network)
 - [Physical interface](#physical-interface)
 - [Software switch](#software-switch)
@@ -18,20 +29,25 @@
 
 ## Baixando a imagem
 
-Para podermos instalar em nosso hypervisor, é necessário baixarmos a imagem da VM, já disponibilizada pela FortiNet, para isso acesse <a href="https://www.forticloud.com">Forticloud</a> , faça login caso já tenha uma conta, se não, cria uma conta nova.
+Para podermos instalar em nosso hypervisor, é necessário baixarmos a imagem da VM, já disponibilizada pela FortiNet, para isso acesse <a href="https://www.forticloud.com">Forticloud</a> , faça login caso já tenha uma conta, se não, basta criar uma conta nova.
 
 Na sequência, você terá acesso a area para fazer downloads indo <a href="https://support.fortinet.com/support/#/downloads/vm">aqui</a> , escolha a opção que tenha **New deployment of FortiGate**, descompacte o arquivo e execute o **FortiGate-VM64** , considerando que você esta utilizando o VMWare Workstation, ira abrir a area de importação de VMs, basta seguri o passo a passo padrão, defina um nome para VM.
 
 
 ## Configurando interfaces de redes do VMware Workstation
 
+**Obs.: Por ser uma imagem trial, somos limitados a 3 interfaces!**
+
 A nossa topolgia será de seguinte forma :
 
-- maquina host(sua máquina) : 192.168.70.1/24
-- FortiGate : ETH1 -> 192.168.70.10/24 (Gerência do Firewall)
-- LAN Corporativa : ETH2 -> 10.10.10.0/24 (maquinas desktop, wireless)
-- Rede Insegura : ETH3 -> 10.20.20.0/24 (Cameras,VOIP)
-- Rede Blindada : ETH4 -> 10.30.30.0/24 (Servidores isolados)
+- maquina host(sua máquina) : 192.168.0.11/32
+- FortiGate : Port1 -> 192.168.0.99/24 (Gerência do Firewall)
+- LAN Corporativa : Port2 -> 192.168.197.0/24 (maquinas desktop, wireless)
+- maquina cliente(cliente, usuario) -> 192.168.197.120
+
+**Em outro momento usaremos essas outras redes, lembrando que iremos reaproveitar portas, reforçando que temos apenas 3 liberadas.**
+- _Rede Insegura : ETH3 -> 10.20.20.0/24 (Cameras,VOIP)_
+- _Rede Blindada : ETH4 -> 10.30.30.0/24 (Servidores isolados)_
 
 ## Configurando interface (CLI)
 
@@ -46,7 +62,7 @@ Execute o comando a seguir para configurar a interface de gerência :
     config system interface
     edit port1
     show (com show você vê apenas informações dessa interface)
-    set ip 192.168.70.10 255.255.255.0
+    set ip 192.168.0.99 255.255.255.0
     set allowaccess https ping ssh
     end
 
@@ -54,9 +70,9 @@ _o end faz com que a configuração seja salva!_
 
 Para validar o acesso tente pingar da sua máquina para o IP de gerência e acessar pelo seu browser!
 
-![alt text](image.png)
+![alt text](image-4.png)
 
-Ao acessar pela primeira vez será solicitado para fazer o registro da licença, que usarmos a **Evaluation License** , mas para isso é necessário que sua segunda interface tenha acesso a internet, então configure-a :
+Ao acessar pela primeira vez será solicitado para fazer o registro da licença, que usaremos a **Evaluation License** , mas para isso é necessário que sua segunda interface tenha acesso a internet, então configure-a :
 
     config system interface
     edit port2
@@ -76,9 +92,9 @@ Informa o seu login criado na FortiCloud, para que o registro da VM seja realiza
 
 ### Dashboard
 
-![alt text](image-2.png)
+![alt text](image-5.png)
 
-Uma vez logado dentro do seu FortiGate, você vai cair de cara na dashboard/status, onde você pode ter informações básicas de :
+Uma vez logado dentro do seu FortiGate, você vai cair de cara na **Dashboard/Status**, onde você pode ter informações básicas de :
 
 - System information
 - Licenses
@@ -86,6 +102,153 @@ Uma vez logado dentro do seu FortiGate, você vai cair de cara na dashboard/stat
 - Memory
 - Sessions
 - etc
+
+
+## Configurações iniciais
+
+### Configurando interface LAN
+
+A interface LAN, será nossa port2, para isso vamos em **Network/Interfaces**, selecionamos dentro de **Physical Interface** e port2, clique 2x para editar.
+
+- Defina um nome/alias para a interface, facilitando a identificação.
+- Escolha a Role, no caso LAN.
+- Addressing mode, você pode escolher o tipo, mas em nosso laboratorio optem por **MANUAL**.
+- Defina o IP, caso tenha escolhido MANUAL.
+- Administrative Access:
+    - Selecione o que vai ser possivel fazer nessa interface, como acesso HTTPS, PING.
+
+- Por ser uma interface LAN, acredito que queira distribuir os IPs de forma mais dinamica. Então será necessário marcar DHCP Server, definir o Range, adicionar netmask , default gateway,se necessáro também um DNS server.
+
+![alt text](image-6.png)
+
+
+
+
+### Configurando interface WAN
+
+A interface WAN, será nossa port1, seguimos na mesma tela ainda de **Network/Interfaces**, clicamos 2x na port1 para editar.
+
+- Defina um nome/alias para a interface, em meu exemplo coloquei como se fosse o link de um provedor de internet.
+- Escola a Role, que será WAN.
+- Addressing mode, escolha **MANUAL**, note que dessa vez não aparecera para ter um server DCHP, pois essa será nossa interface de gerencia, não precisamos distribuir IP nela. Mas nada impende de no futuro criar uma interface/VLAN apenas para gerencia.
+
+![alt text](image-7.png)
+
+
+
+
+### Overview interfaces
+
+Agora nossas interfaces devem estar dessa forma, note que no canto direito esta filtrado como **Group By Role**, ou seja, a visualização será baseada na Role definida, assim facilitando a identificação de LAN,WAN, etc.
+
+- IP/Netmask , podemos ver o IP da interface e a netmask.
+- Administrative access, podemos ver os serviços acessiveis por essas interfaces.
+- DHCP Clients, podemos ver a quantidade de clients que receberam IP via DHCP.
+- DHCP Range, é o range de IP que definimos dentro da interface.
+
+![alt text](image-8.png)
+
+## Usuários administrativos
+
+Usuários administrativos, como o próprio nome sugere, são contas usadas para administrar o FortiGate (acessar a GUI/CLI, criar políticas, configurar objetos etc.).
+São usuários de administração do equipamento.
+
+Vá em **System/Administratos**, depois clique em **Create New**
+
+![alt text](image-9.png)
+
+- Administrator :
+
+    - Usuário criado em System → Administrators.
+    - Pode acessar a GUI/CLI para gerenciar e configurar o FortiGate.
+    - Pode ter perfis de acesso diferentes (ex.: super_admin, read-only, perfil customizado).
+    - A autenticação pode ser local, LDAP, RADIUS, etc.
+
+- Rest API Admin :
+
+    - Usuário especial também criado em System → Administrators, mas com tipo “REST API Admin”.
+    - Não é para login humano na GUI/CLI.
+    - Usado para integrações via API (ex.: scripts em Python, integrações com Zabbix, Grafana, SIEM, n8n, etc.).
+    - Gera um API Token em vez de senha.
+    - Tem os mesmos perfis de permissão (pode ser limitado só a certas funções).
+    - Recomendado para automação e integração de sistemas.
+
+
+- SSO Admin :
+
+_Trecho retirado da documentação_
+
+
+<i>Os administradores de SSO são criados automaticamente quando o FortiGate atua como um provedor de serviços SAML (SP) com o SAML Single Sign-On habilitado nas configurações do Security Fabric.
+Na página de login do sistema, um administrador pode efetuar login com seu nome de usuário e senha no FortiGate raiz, atuando como provedor de identidade (IdP) no Security Fabric. Após o primeiro login bem-sucedido, esse usuário é adicionado à tabela de administradores ( Sistema > Administradores em Administrador de Logon Único ). O perfil padrão selecionado é baseado nas configurações do SP ( Perfil de administrador padrão ). Consulte Configurando um FortiGate downstream como um SP para obter mais informações.</i>
+
+
+
+### Criando usuário administrativo
+
+Escolha Administrator, o tipo aqui iremos escolher **Local**, defina o nome de usuário e senha. Após isso em **Admministrator profile**, será o perfil de acesso desse usuário, o que ele pode ou não fazer, você ainda pode criar um perfil customizado, clicando em Create.
+
+![alt text](image-10.png)
+
+Nesse exemplo, definimos que o usuário terá apenas permissão para visualizar :
+
+- Network
+- System
+- Security Profile
+
+
+- Two-factor authentication : apenas funciona caso você tenha na sua licença FortiToken Cloud ou se tiver o FortiToken fisico.
+
+![alt text](image-11.png)
+
+
+
+### Configurando DHCP Server
+
+O DHCP Server, será usado na nossa interface LAN e qualquer outra interface que queiramos, para fazer isso, clique na interface que quer habilitar o DHCP server e a edite.
+
+![alt text](image-12.png)
+
+
+### Criando DNS Server
+
+Imagine o cenário onde na empresa todos os ambientes não são publicados, então você precisa configurar uma DNS Server, em vez de ficar adicionandno os hosts manualmente em cada dispositivo/máquina, para isso você pode criar um DNS Server, indo em **Network/DNS Server**.
+
+Em **DNS Service on Interface** , você vai escolher qual interface será usada
+
+![alt text](image-13.png)
+
+Em **DNS Database**, você vai criar as zonas baseado nos dominios
+
+![alt text](image-14.png)
+
+Depois você precisa criar as zonas, é como fazer no Active Directory
+
+![alt text](image-15.png)
+
+Uma vez criado e configurado, o usuário da interface LAN, vai conseguir resolver o host:
+
+![alt text](image-16.png)
+![alt text](image-17.png)
+
+
+### Backup de Configuração
+
+É de extrama importância que seja feito backup se possivel diariamente do FGT através de alguma automação e importante entender como funciona, para isso você clica no canto direito superior, onde aparece o seu usuário logado, clicar em **Configuration/Backup**
+
+![alt text](image-18.png)
+
+Caindo nessa tela:
+
+- Backup to : Escolhemos **Local PC**, para podermos baixar em nossa maquina
+- File Format : A dirença entre FortiOS e YAML, é que FortiOS fica exatamente da mesma forma que configuramos via CLI.
+- Password mask : Use essa opção apenas se for enviar o arquivo para um terceiro ou a própria FortiNet, esse arquivo não serve para restore, devido ao hash da senha que vai ser perdido.
+- Encryption : literalmente criptografar o arquivo com uma senha.
+
+![alt text](image-19.png)
+![alt text](image-20.png)
+
+Para restaurar não tem misterio, é apenas escolher Restore, escolher o arquivo para upload e caso tenha definido senha, informar.
 
 ### Network
 
