@@ -15,17 +15,16 @@
     - [Configurando DHCP Server](#configurando-dhcp-server)
     - [Criando DNS Server](#criando-dns-server)
     - [Backup de configuração](#backup-de-configuração)
+        - [Revisions](#revisions)
+    - [Configurando o firewall](#configurando-o-firewall)
 
 
-- [Network](#network)
-- [Physical interface](#physical-interface)
-- [Software switch](#software-switch)
-- [SD-WAN](#sd-wan)
-    - [Criando SD-WAN](#criando-a-sd-wan)
-- [Policy & Objects](#policy--objects)
-    - [Addresses](#addresses)
-    - [Firewall Policy](#firewall-policy)
-    - [NAT | VIP]
+ Criando policitas de firewall
+- [Criando e utilizando objetos](#criando-e-utilizando-objetos)
+    - [Politica com autenticação](#policitas-com-autenticação)
+    - [Captive portal](#captive-portal)
+    - [Configuração de NAT](#nat)
+
 
 ## Baixando a imagem
 
@@ -250,80 +249,60 @@ Caindo nessa tela:
 
 Para restaurar não tem misterio, é apenas escolher Restore, escolher o arquivo para upload e caso tenha definido senha, informar.
 
-### Network
+#### Revisions
 
-Aqui é onde vamos administrar nossas interfaces de rede, SD-WAN, software-swith/VLAN, Tunnel interface, DNS, vamos por partes!
-
-- Interfaces : A principio você verá suas interfaces fisicas, considerando que estamos numa versão de avaliação só nos permite ter 3 interfaces .
-
-#### Physical interface
-
-- port1 : Aqui usaremos essa port1 para ser a nossa porta de gerencia do FortiGate, apenas nossa maquina host deverá ter acesso a ela.
-
-- port2 : Usaremos ela como nossa interface LAN, onde poderemos por exemplo conectar nela nosso Zabbix, nosso host Linux, note que essa interface permite saida para internet, como setamos anteriormente.
-
-- port3 : Usaremos essa port para estudarmos sobre SD-WAN, que seria para verificar por qual link teriamos a melhor conexão,menor latência,etc.
+É equivalente a fazer um snapshot, um ponto de restauração, quando você quer realizar alguma alteração, você criar essa revision e depois de criada, pode fazer as alterações, caso algo dê errado, basta voltar a revision, mas claro que, acredito que o recomendado seja, entrou no FGT, faça backup.
 
 
-<p>A primeira port, já foi configurada no inicio, onde setamos que ela pegeria um IP statico,e que teriamos acesso https.</p>
+## Configurando o firewall
 
-<p>A segunda port, também setamos um IP nela porém de modo DHCP, apenas para podermos ter acesso a internet e registrar nosso FortiGate VM, porém depois de termos acesso a interface pelo browser, podemos por la alterar o modo para static, setar um IP,definir o que teremos acesso como:
+### Criando policitas de firewall
 
-- HTTPS
-- SSH
-- PING
-- SNMP
+De forma direta e objetiva, as regras ou policy como são chamadas no FortiGate, consiste no conceito de onde você quer sair e para onde você vai, exemplo :
 
-A principio será bom que na port1 ter permissão HTTPS, SSH, PING, já na port2 deixar apenas PING e SNMP, para podermos fazer a coleta de metricas no nosso Zabbix+Grafana.
-</p>
-
-### Software Switch
-
-Aqui, o soft-switch, seria como criar VLANs, a diferença é que a VLAN mesmo seria se fossemos conectar a porta num switch gerenciavel em redes trunk. Então como vai funcionar :
-
-- A nossa port2 ela pega da interface do VMware Workstation o IP : 192.168.175.X ,porém queremos que nossa rede LAN seja 10.10.10.X/24, então para isso criamos uma nova interface do Type **Software Switch**, na role **LAN**, em Interface members selecionamos a port2, em **Addressing mode** escolhemos Manual, informando a subnet 10.10.10.0/24, em **Administrative Access** deixe ativo PING, SNMP, ative o **DHCP Server** e informe um range de IPs, o resto pode deixar tudo padrão até o momento.
-
-_Vale ressaltar que o uso de soft-switch aumentará o consumo de CPU e aqui estamos limitados a 1 core!_
-
-Se tivessemos mais ports disponiveis poderiamos criar a soft-switch para rede de **Convidados**, a rede **Blindada** de exclusividade dos servidores internos, etc, a ideia é entender o conceito e como usar.
-
-### DNS
-
-Na area de DNS, por padrão é utilizado o server da **FortiGuard**, mas se quisermos alterar para usar nosso próprio server de DNS como um Active Directory é possivél, basta apenas alterar para **Specify** e informar os IPs.
-
-### SD-WAN
-
-<p>A SD-WAN, é uma abordagem para gerenciamento de redes WAN, onde o controle de tráfego é feito via software, e seu objetivo seria gerenciar de forma automática ,segura e eficiente com base em politicas e desempenho real de cada link.</p>
-
-<p>A SD-WAN nos entrega :
-
-- Load Balancer entre os links
-- Failover caso um dos links caia
-- Monitoramento de latência,packet loss
-- Roteamento baseado em aplicações
-
-Na prática seria o seguinte :
-
-- Seu cliente tem 2 links de internet um da Brisanet de 600MB e um da Vivo de 200MB, e você define que ambos os links vão monitorar a Perfomancer SLAs para o google.com, e foi detectado que o link da Brisa esta com packet loss de 90%, com base nisso o roteamento iria ser alterado para usar o link da Vivo que na teoria não estaria com packet loss, melhorando então o trafego do cliente.
-
-Mas de toda forma, o host sempre estara conectado a uma interface LAN, mas o seu tráfego de saida para internet será roteado pela SD-WAN, de acordo com as regras que forem criadas. </p>
-
-#### Criando a SD-WAN
-
-Iremos criar usamo a interface GUI, em Network/SD-WAN, na aba SD-WAN Zones,
-você já vai ver que existe um virtual-wan-link, usaremos ele para nossa primeira SD-WAN, clique nele para que possamos editar e escolher a Interface member, que no nosso caso será a port3, clique no sinal de **+** e em port3 -> edit dexie o Gateway em Dinamyc para que pegue o Gateway default da interface, de um OK, e agora vá para **Perfomance SLAs**, por padrão teremos alguns destinos como:
-
-- Default_FortiGuard
-- Default_Gmail
-- Default_Google Search
-
-Basta editar e em participants escolher a port3 da SD-WAN, no fim teremos algo assim:
-![alt text](image-3.png)
-
-### Policy & Objects
+- Você esta conectado na LAN, porém sem acesso a internet, então é preciso criar uma policy que permita sua saida pela LAN para a INTERNET.
 
 
-#### Addresses
+Então, vamos criar na pratica, primeiro é necessário entender que as policy são lidas de cima para baixo(top down), segue um print :
+
+![alt text](image-21.png)
+
+De forma implicita, todo trafego é bloqueado, para que você possa então criar as policy e ir liberando acessos conforme necessário e ou solicitado. Para criar uma nova policy basta clicar em **Create New**.
+
+![alt text](image-22.png)
+
+- Name : para você definir o nome da policy.
+- Incoming interface : A interface de origem
+- Outgoing intarface : A interface de saida
+- Source : A origem, pode ser um IP, um grupo de IPs, etc
+- Destination : Pode ser como destino tudo na internet(ALL),etc.
+
+- Schedule : permite que você possa agendar que uma determinada policy fique ativa durante um periodo de dias e horário, pense no caso de um consultor que precisa usar uma VPN, mas só pode em dias uteis e horário comercial, então seria mais ou menos essa a ideia do schedule.
+
+- Action : Basicamente se é para liberar o acesso ou negar.
+
+- Firewall/Network Options
+
+    - NAT : Aqui na verdade é um PNAT, onde da forma que esta confiurada no print, onde vai ser alterar apenas a porta que o host vai assumir durante a sessão. Abordaremos mais pra frente sobre NAT.
+
+- Security Profiles : Também iremos abordar mais a frente, mas são basicamentes filtros que aplicamos para analisar pacotes e bloquear, filtro de antivirus, etc.
+
+![alt text](image-23.png)
+
+#### Regra criada
+
+![alt text](image-24.png)
+
+Como dito anteriormente, a primeira regra default/implicita no firewall é um DENY total, e agora criamos uma regra que permite acesso total para internet. A partir de agora qualquer regra que queiramos criar para fazer bloqueios deve ser acima da web_access, segue exemplo abaixo, onde faremos um bloqueio para o instagram e facebook, e qualquer outro destino estará livre.
+
+**Regra de bloqueio**
+![alt text](image-25.png)
+
+**Log da tentativa de conexão para instagram**
+![alt text](image-26.png)
+
+
+### Criando e utilizando objetos
 
 No FortiGate, o **addresses** se assemelha ao "alias" do pfSense, mas de forma diferente, onde na verdade aqui são tratados como **Objetos de rede** que representam :
 
@@ -334,46 +313,101 @@ No FortiGate, o **addresses** se assemelha ao "alias" do pfSense, mas de forma d
 - Uma interface local
 - Um grupo de endereços
 
-E são usados quando vamos criar regras de firewall(politicas), policitas de NAT, roteamento, VPN, entre outras.
+E são usados quando vamos criar regras de firewall(politicas), policitas de NAT, roteamento, VPN, entre outras., no exemplo da regra de bloqueio ao acesso a redes sociais anterior, você pode ver que o Destination é "Sociais", nesse Address Group, estão os FQDNs :
 
-#### Firewall Policy
-
-Literalmente é regra de firewall, caso já tenha trabalhado com algum outro vai ser facil entender:
+![alt text](image-27.png)
 
 
-### NAT e VIP
+### Policitas com autenticação
 
-Ao menos aqui na versão 7.6.3 funciona da seguinte forma:
+É possivel fazer com que, ao equipamento(desktop ou notebook), solicite um login de autenticação para poder utilizar a rede:
 
-- A policy a ser criado vai ser ondo o acesso se dá de fora para dentro,sendo assim
+![alt text](image-29.png)
 
-    - Incoming interface : sua SD-WAN
-    - Outgoing interface : sua LAN ou soft-switch
-    - Source : ALL
-    - Destination : Pode ser sua propria LAN ou soft-switch aplicando a todo host daquela interface
-    - Service : no caso utlizei web access, como se fosse permitindo o acesso externo ao nosso webserver na HTTP / HTTPS
+Nessa regra, foi especificado que qualquer host dentro da rede LAN precisa ter autenticação do usuario, caindo nessa tela:
 
-Se deixarmos marcado o NAT já teriamos uma roteamento rolando a todos os hosts da interface Outgoing. Em nosso caso iremos utilizar do VIP.
+![alt text](image-30.png)
 
-### VIP
+Depois de devidamente autenticado, o acesso a internet e ping esta liberado.
 
-o VIP vai nos permitir fazer o redirecionamento para um host ou grupo de hosts especificos, sendo assim vamos em **Virtual IPs**, vá em Create New e informe :
 
-- Name
-- Network : a interface da sua WAN
-- External IP address/range: se deixar 0.0.0.0 então é tudo permitido
+### Captive Portal
 
-Marque o Port Forwarding, e em :
+Bem comum quando você vai se conectar numa rede wi-fi de um super mercado, um banco, etc, e essa configuração é habilitada na interface que deseja que tenha, basta editar a interface e ir em **Network/Security mode**:
 
-- External port : informe a porta de origem
-- Map to IPv4 port : Informe a porta interna do destino
+![alt text](image-31.png)
 
-Agora volte na policy que criamos antes e altere Destination para o seu VIP.
+## Configuração de NAT
 
-No fim teremos :
+O NAT (Conversão de Endereços de Rede) é um recurso que permite alterar o endereço IP de origem ou destino de um pacote IP quando ele passa por um roteador ou firewall.
+Ele surgiu porque os endereços IPv4 públicos são limitados, então o NAT possibilita que vários dispositivos de uma rede privada (endereços RFC 1918, como 192.168.x.x, 10.x.x.x e 172.16.x.x-172.31.x.x) compartilhem um único IP público para acessar a Internet.
 
-A policy
-![alt text](image-4.png)
 
-O VIP
-![alt text](image-5.png)
+Quando criamos uma policy, de forma nativa já tem um NAT configurado:
+
+![alt text](image-32.png)
+
+Sendo que dessa forma, ele vai usar o IP do host 
+
+
+Para fazer o NAT sem usar a policy, vamos em Virtual IPs, e la fazemos a criação do NAT
+
+se quisermos usar um pool de ips de um provedor de internet que a empresa usa por exemplo, também é possivel em IP pools.
+
+exemplo de static NAT
+
+![alt text](image-33.png)
+
+### Como funciona
+
+
+Quando um dispositivo da LAN (rede interna) tenta acessar algo na Internet:
+
+- Ele envia um pacote com:
+
+        Origem: IP privado (ex: 192.168.1.10)
+
+        Destino: IP público (ex: 8.8.8.8)
+
+- O roteador/firewall com NAT intercepta o pacote e troca o IP de origem para o IP público da WAN (ex: 200.200.200.10).
+
+- Para diferenciar vários dispositivos internos usando o mesmo IP público, o NAT também troca a porta de origem (ex: de 54321 para 40001).
+
+- Mantém uma tabela de tradução:
+
+        192.168.1.10:54321  ->  200.200.200.10:40001
+        192.168.1.20:54322  ->  200.200.200.10:40002
+
+
+- Quando a resposta chega da Internet, o roteador consulta essa tabela e entrega o pacote ao host interno correto.
+
+### Tipos de NAT
+
+Existem variações importantes:
+
+
+- DNAT (Destination NAT)
+
+        Tradução do IP de destino.
+
+        Usado para publicar um servidor interno para fora.
+
+        Exemplo: Port Forwarding (mapear porta 80 externa → servidor web interno).
+
+
+- PAT (Port Address Translation)
+
+        Vários IPs internos usam o mesmo IP público, diferenciados por portas.
+
+        É o NAT mais usado em roteadores domésticos e corporativos.
+
+- NAT Estático
+
+        Um IP interno mapeado fixamente para um IP público.
+
+        Exemplo: 192.168.1.100 ↔ 200.200.200.50.
+
+- NAT Dinâmico
+
+        Usa um pool de IPs públicos e mapeia dinamicamente cada IP interno para um deles.
+
