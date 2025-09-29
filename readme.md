@@ -1,4 +1,4 @@
-# FortiGate
+# FortiGate - FortiOS
 
 ## Indices
 
@@ -16,14 +16,21 @@
     - [Criando DNS Server](#criando-dns-server)
     - [Backup de configuração](#backup-de-configuração)
         - [Revisions](#revisions)
-    - [Configurando o firewall](#configurando-o-firewall)
-
-
- Criando policitas de firewall
-- [Criando e utilizando objetos](#criando-e-utilizando-objetos)
-    - [Politica com autenticação](#policitas-com-autenticação)
-    - [Captive portal](#captive-portal)
-    - [Configuração de NAT](#nat)
+- [Configurando o firewall](#configurando-o-firewall)
+    - [Criando policitas de firewall](#criando-policitas-de-firewall)
+    - [Criando e utilizando objetos](#criando-e-utilizando-objetos)
+        - [Politica com autenticação](#policitas-com-autenticação)
+        - [Captive portal](#captive-portal)
+- [Configuração de NAT](#configuração-de-nat)
+- [Security profiles](#security-profiles)
+    - [Criando uma DMZ](#criando-uma-dmz)
+    - [AntiVirus](#antivirus)
+    - [Criando arquivo "infectado"](#criando-arquivo-infectado)
+    - [Web filter](#web-filter)
+    - [DNS filter](#dns-filter)
+    - [Application control](#application-control)
+    - [IPS | Intrusion Prevention](#ips--intrusion-prevention)
+    - [File filter](#file-filter)
 
 
 ## Baixando a imagem
@@ -411,3 +418,85 @@ Existem variações importantes:
 
         Usa um pool de IPs públicos e mapeia dinamicamente cada IP interno para um deles.
 
+## Security profiles
+
+### Criando uma DMZ
+
+
+![alt text](image-37.png)
+
+Essa DMZ, é mas para podermos simular um webserver vulneravel/infectado.<br>
+Para criar, em nosso virtualizador(estamos usando o VMWare Workstation), basta adicionar uma nova interface ao FortiGate, do tipo **host-only**. Crie um novo host que vai ficar nessa rede DMZ, configure da mesma forma que fizemos na interface LAN.
+
+É importante lembrar que essas redes a principio não vão ter comunicação, então, será necessário criar policys, faça a policy **LAN_TO_DMZ**, permitindo acesso da rede LAN para a rede DMZ liberando os serviços web(ping,https,dns,etc). Agora você vai conseguir se comunicar com ela, mas o contrario não vai acontecer, por enquanto é isso que queremos.
+
+
+- Policy LAN_TO_DMZ
+
+![alt text](image-38.png)
+
+#### AntiVirus
+
+Dentro da policy, no campo **Security Profiles**, selecione **AntiVirus**, irei usar o nome como _antivirus_custom_ , a ação do AntiVirus scan, será **Block**, os protocolos inspecionados, você pode marcar todos ou apenas o que quer inspecionar, em nosso caso vamos deixar todos habilitados. Demais campos vale uma leitura na documentação disponivel <a href="https://docs.fortinet.com/document/fortigate/7.6.4/administration-guide/836396/antivirus">aqui</a> .
+
+![alt text](image-39.png)
+
+#### Criando arquivo "infectado"
+
+
+No seu host webserver, rode esse comando no terminal :
+
+    # cria o arquivo EICAR
+    echo -n 'X5O!P%@AP[4\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*' > /tmp/eicar.com
+
+    # serve por HTTP na porta 8000 (não precisa de root)
+    cd /tmp
+    python3 -m http.server 8000
+
+Ira criar um arquivo malicioso de testes e subir um server web na porta 8000.
+
+Em seu host da rede LAN, acesse :
+
+
+    http://192.168.17.10:8000/eicar.com
+
+
+Se tudo estiver feito corretamente, teremos esse retorno:
+
+![alt text](image-36.png)
+
+Virus detectado e barrado.
+
+#### Web filter
+
+Para testarmos o web filter, vamos usar a LAN_TO_WAN, mais facil de testar sem tantas configurações, na policy, ative **Web filter**, e iremos criar um filter customizado, para entendermos o que cada coisa faz:
+
+![alt text](image-40.png)
+
+- FortiGuard Category Based Filter : É uma base de dados da FortiGuard com destinos previamentes já cadastrados, porém só funciona se você tiver licença para uso.
+
+- Allow users to override blocked categories : Permite que usuarios especificos passem por cima do bloqueio caso, ativado FortiGuard.
+
+Para nosso laboratorio, iremos usar **Static URL Filter**, na opção **URL Filter**, ao habilitar, poderemos inserir manualmente o site que queremos bloquer:
+
+![alt text](image-41.png)
+
+#### DNS filter
+
+
+![alt text](image-42.png)
+
+![alt text](image-43.png)
+
+
+#### Application control
+
+![alt text](image-44.png)
+
+#### IPS | Intrusion Prevention
+
+É basicamente para evitar tentativas de intrusão hacker quando se tem vulnerabilidades,etc.
+
+#### File filter
+
+Serve para filtrar literalmente tipos de arquivos que podem ser enviados ou recebidos, em determinados tipos de protocolos,etc.
