@@ -483,20 +483,127 @@ Para nosso laboratorio, iremos usar **Static URL Filter**, na opção **URL Filt
 
 #### DNS filter
 
+O DNS Filter é um recurso de segurança do FortiGate que permite controlar e filtrar requisições DNS que passam pelo firewall. Basicamente, ele intercepta as solicitações de resolução de nomes de domínio e pode bloquear ou permitir o acesso com base em políticas configuradas.
 
-![alt text](image-42.png)
+#### Principais Funcionalidades
+
+- **Filtragem de Categorias** : O FortiGate possui um banco de dados (FortiGuard) que categoriza milhões de domínios. Você pode bloquear categorias inteiras como:
+
+    - Jogos online
+    - Redes sociais
+    - Conteúdo adulto
+    - Malware e phishing
+    - Streaming de vídeo
+
+- **Proteção contra Ameaças**
+
+    - Bloqueia acesso a domínios maliciosos conhecidos
+    - Protege contra botnets e C&C (Command and Control)
+    - Previne acesso a sites de phishing
+
+- **Redirecionamento DNS** : Pode redirecionar requisições DNS para servidores específicos. Útil para forçar o uso de DNS interno da empresa
+
+#### Como Funciona na Prática
+
+Quando um usuário tenta acessar um site (ex: www.exemplo.com):
+
+- O dispositivo envia uma requisição DNS
+- O FortiGate intercepta essa requisição
+- Verifica as políticas de DNS Filter configuradas
+- Se permitido, resolve o endereço normalmente
+- Se bloqueado, retorna um erro ou página de bloqueio
+
+#### Onde Configurar
+No FortiGate, você configura em:
+**Security Profiles → DNS Filter** e depois aplica o perfil em uma política de firewall.
+
+![alt text](image-45.png)
 
 ![alt text](image-43.png)
+
+Obs.: É recomendado que fique habilitado :
+
+**Enforce Safe Search on Google, Bing, YouTube
+
+Obs.2 : Para utilizar o FortiGuard é necessário ter licença valida!
+
+- Domain Filter, permite que você possa inserir quais DNS vão ser bloqueados, permitidos ou monitorados, funcinoa como no web filter.
+
+- DNS Translation : funciona como um redirect para outro server DNS que queria utilizar.
 
 
 #### Application control
 
-![alt text](image-44.png)
+É um recurso de segurança do FortiGate que permite **identificar, controlar e bloquear aplicações** baseado no tráfego de rede, independentemente da porta ou protocolo usado. Funciona como o web filter, sendo que de forma mais pratica, bastando que você adicione a aplicação que será tratada, exemplo, se quiser que não seja possivel abrir a chrome web store.
+
+![alt text](image-47.png)
+![alt text](image-46.png)
+
+Ao tentar acessar a partir do chrome a web store, será barrado, claro depende da ação que será aplicada.
 
 #### IPS | Intrusion Prevention
 
-É basicamente para evitar tentativas de intrusão hacker quando se tem vulnerabilidades,etc.
+O IPS é um sistema de prevenção de intrusões que monitora o tráfego de rede em tempo real procurando por ataques, exploits e comportamentos maliciosos. Quando detecta algo suspeito, ele bloqueia automaticamente antes que cause dano.
+
+![alt text](image-48.png)
+
+Nesse exemplo está sendo aplicado o IPS para previnir um backdoor através do vsftpd.
 
 #### File filter
 
-Serve para filtrar literalmente tipos de arquivos que podem ser enviados ou recebidos, em determinados tipos de protocolos,etc.
+O File Filter é um recurso de segurança que permite controlar quais tipos de arquivos podem trafegar pela rede. Ele identifica arquivos por extensão ou assinatura e pode bloquear, permitir ou registrar a transferência desses arquivos.
+
+![alt text](image-49.png)
+
+## Monitoramento e Logs
+
+Logs são registros detalhados de tudo que acontece no FortiGate:
+
+- Tráfego de rede
+- Ataques bloqueados
+- Sites acessados
+- Autenticações
+- Mudanças de configuração
+- Eventos do sistema
+
+### São essenciais para:
+
+- Troubleshooting - Identificar problemas
+- Segurança - Detectar ataques e incidentes
+- Compliance - Atender auditorias e regulamentações
+- Análise - Entender uso da rede
+- Forense - Investigar incidentes de segurança
+- Tipos de LogsO FortiGate gera vários tipos de logs:1. Traffic Logs (Logs de Tráfego)
+
+### Registra todas as sessões que passam pelo firewall:
+
+- IP origem e destino
+- Portas
+- Protocolo
+- Bytes enviados/recebidos
+- Duração da sessão
+- Política aplicada
+- Ação (allow/deny)
+
+Exemplo:
+
+    date=2025-10-02 time=20:30:15
+    srcip=192.168.1.100 srcport=54321
+    dstip=8.8.8.8 dstport=443
+    proto=6 (TCP)
+    action=accept policyid=10
+    sentbyte=1500 rcvdbyte=50002. Security Logs (Logs de Segurança)
+    Eventos dos security profiles:Antivirus Logs
+
+
+
+
+### Níveis de SeveridadeOs logs têm níveis de severidade (0-7):
+
+![alt text](image-50.png)
+
+    Uso prático:
+
+    Critical/Alert: Requer ação imediata
+    Warning: Monitorar
+    Info/Notification: Registro normal
